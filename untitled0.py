@@ -67,12 +67,15 @@ if st.button("🔍 開始全量掃描"):
                 else:
                     st.info(f"⚪ {symbol} 趨勢尚在整理中。")
 
-                # 繪製 K 線圖
+# 繪製 K 線圖
                 fig = go.Figure(data=[go.Candlestick(x=df.index,
                                 open=df['Open'], high=df['High'],
                                 low=df['Low'], close=df['Close'], name='K線')])
                 fig.update_layout(height=400, margin=dict(l=0, r=0, t=0, b=0))
                 st.plotly_chart(fig, use_container_width=True)
-
+                
             except Exception as e:
-                st.warning(f"分析 {symbol} 時出
+                st.warning(f"分析 {symbol} 時出錯: {e}")
+
+st.sidebar.markdown("---")
+st.sidebar.write("💡 提示：輸入代號請加 .TW (台股)")
