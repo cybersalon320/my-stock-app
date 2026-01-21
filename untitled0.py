@@ -1,15 +1,14 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import time
 
 # --- 1. 網頁基礎配置 ---
 st.set_page_config(page_title="專業考場看板", layout="wide")
 
-# --- 2. 側邊欄：手動輸入區 ---
+# --- 2. 側邊欄：考場設定 ---
 st.sidebar.header("📝 考場設定")
 
-# 人數修正
 if 't' not in st.session_state: st.session_state.t = 30
 if 'p' not in st.session_state: st.session_state.p = 30
 st.session_state.t = st.sidebar.number_input("應到人數", value=st.session_state.t, step=1)
@@ -17,7 +16,7 @@ st.session_state.p = st.sidebar.number_input("實到人數", value=st.session_st
 absent = st.session_state.t - st.session_state.p
 
 st.sidebar.markdown("---")
-# 課表輸入：預設範例文字
+# 預設課表內容
 default_sch = """第一節：自修, 08:25-09:10
 第二節：寫作, 09:20-10:05
 第三節：自修, 10:15-11:00
@@ -28,59 +27,85 @@ default_sch = """第一節：自修, 08:25-09:10
 st.sidebar.subheader("📅 手動輸入考程")
 raw_input = st.sidebar.text_area("格式：科目, 開始-結束", value=default_sch, height=200)
 
-# --- 3. 解析輸入的課表 ---
+# 解析課表邏輯
 sch = []
 try:
     for line in raw_input.strip().split('\n'):
         if ',' in line:
-            name, times = line.split(',')
-            s, e = times.strip().split('-')
-            sch.append({"n": name.strip(), "s": s.strip(), "e": e.strip()})
+            parts = line.split(',')
+            name = parts[0].strip()
+            times = parts[1].strip().split('-')
+            sch.append({"n": name, "s": times[0].strip(), "e": times[1].strip()})
 except:
-    st.sidebar.error("課表格式錯誤，請檢查逗號或橫槓！")
+    st.sidebar.error("⚠ 課表格式有誤，請檢查逗號與橫槓")
 
-# --- 4. 時間與課表邏輯 ---
-now = datetime.now(pytz.timezone('Asia/Taipei'))
+# --- 3. 時間判斷與變色邏輯 ---
+tw_tz = pytz.timezone('Asia/Taipei')
+now = datetime.now(tw_tz)
 hm = now.strftime("%H:%M")
+
 cur, rng, hi = "休息時間", "--:--", -1
+is_urgent = False 
 
 for i, x in enumerate(sch):
     if x["s"] <= hm <= x["e"]:
         cur, rng, hi = x["n"], f"{x['s']}-{x['e']}", i
+        
+        # 計算距離結束還有幾分鐘
+        try:
+            end_dt = datetime.strptime(x["e"], "%H:%M").replace(
+                year=now.year, month=now.month, day=now.day, tzinfo=tw_tz
+            )
+            remain = (end_dt - now).total_seconds() / 60
+            if 0 < remain <= 10:
+                is_urgent = True
+        except:
+            pass
         break
 
-# --- 5. 渲染美感畫面 ---
-html = f"""
-<style>.stApp {{ background:#fff; }}</style>
-<div style="background:#FDF5E6; padding:30px; border-radius:20px; font-family:sans-serif; color:#5D5D5D;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <div><small style="color:#BC8F8F; font-weight:bold;">當 前 時 間</small><br><b style="font-size:80px;">{now.strftime("%H:%M:%S")}</b></div>
-        <div style="background:#fff; padding:20px 40px; border-radius:15px; text-align:right; box-shadow: 2px 2px 10px rgba(0,0,0,0.02);">
-            <b style="font-size:45px; color:#BC8F8F;">{cur}</b><br><span style="color:#888; font-size:24px;">{rng}</span>
-        </div>
-    </div>
-    <div style="display:flex; gap:20px;">
-        <div style="background:#fff; padding:25px; border-radius:15px; flex:1; box-shadow: 2px 2px 10px rgba(0,0,0,0.02);">
-            <b style="color:#BC8F8F; font-size:22px;">📅 今日考程</b><hr>
-"""
-for i, x in enumerate(sch):
-    bg = "background:#A3B18A; color:#fff; border-radius:8px;" if i == hi else "border-bottom:1px solid #eee;"
-    html += f'<div style="{bg} padding:12px; display:flex; justify-content:space-between; font-size:18px;"><span>{x["n"]}</span><span>{x["s"]}-{x["e"]}</span></div>'
+# 定義顏色
+warn_red = "#E63946"
+theme_brown = "#BC8F8F"
+text_gray = "#5D5D5D"
 
-html += f"""
-        </div>
-        <div style="background:#fff; padding:25px; border-radius:15px; flex:1.5; text-align:center; box-shadow: 2px 2px 10px rgba(0,0,0,0.02);">
-            <b style="color:#BC8F8F; letter-spacing:10px; font-size:20px;">考 場 規 範</b>
-            <h1 style="margin:30px 0; font-size:48px;">🚫 考完請在位靜候<br><small style="color:#666; font-size:32px;">等監考老師收完卷</small></h1>
-            <div style="display:flex; justify-content:space-around; background:#FDF5E6; padding:20px; border-radius:15px;">
-                <div><small style="font-weight:bold;">應到</small><br><b style="font-size:45px;">{st.session_state.t}</b></div>
-                <div><small style="font-weight:bold;">實到</small><br><b style="font-size:45px;">{st.session_state.p}</b></div>
-                <div><small style="font-weight:bold;">缺席</small><br><b style="font-size:45px; color:#BC8F8F;">{absent}</b></div>
-            </div>
-        </div>
-    </div>
-</div>
-"""
-st.markdown(html, unsafe_allow_html=True)
-time.sleep(1)
-st.rerun()
+current_time_color = warn_red if is_urgent else text_gray
+subject_box_border = f"4px solid {warn_red}" if is_urgent else "none"
+
+# --- 4. 渲染畫面 (移除自動縮放，使用固定比例) ---
+html = f"""
+<style>
+    .stApp {{ background-color: white; }}
+    .main-board {{
+        background-color: #FDF5E6;
+        padding: 30px;
+        border-radius: 25px;
+        color: {text_gray};
+        font-family: sans-serif;
+        min-width: 900px;
+    }}
+</style>
+
+<div class="main-board">
+    <table style="width:100%; border-collapse: collapse;">
+        <tr>
+            <td style="width: 60%;">
+                <div style="font-size: 20px; font-weight: bold; color: {theme_brown};">
+                    {"⚠️ 考試即將結束" if is_urgent else "當 前 時 間"}
+                </div>
+                <div style="font-size: 90px; font-weight: bold; color: {current_time_color}; line-height: 1;">
+                    {now.strftime("%H:%M:%S")}
+                </div>
+            </td>
+            <td style="width: 40%; text-align: right;">
+                <div style="background: white; padding: 20px 40px; border-radius: 20px; display: inline-block; border: {subject_box_border};">
+                    <div style="font-size: 45px; font-weight: bold; color: {warn_red if is_urgent else theme_brown};">
+                        {cur}
+                    </div>
+                    <div style="font-size: 24px; color: #888;">{rng}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div style="display: flex; gap: 20px; margin-top: 30px;">
+        <div style="background: white; padding:
