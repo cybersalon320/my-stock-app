@@ -7,7 +7,6 @@ import time
 st.set_page_config(page_title="專業考場看板", layout="wide")
 
 # --- 2. 側邊欄：人數即時修正功能 ---
-# 使用 session_state 確保重新整理時數字不會跳掉
 if 'total' not in st.session_state:
     st.session_state.total = 30
 if 'present' not in st.session_state:
@@ -25,7 +24,6 @@ tw_tz = pytz.timezone('Asia/Taipei')
 now = datetime.now(tw_tz)
 current_hm = now.strftime("%H:%M")
 
-# 你可以隨時在這裡修改課表時間
 schedule = [
     {"name": "第一節：自修", "start": "08:25", "end": "09:10"},
     {"name": "第二節：寫作", "start": "09:20", "end": "10:05"},
@@ -47,12 +45,27 @@ for i, item in enumerate(schedule):
         break
 
 # --- 4. 奶茶色美感 HTML 樣式注入 ---
+# 注意：這裡就是報錯的地方，請務必確保從 f""" 到最後的 """ 都有複製到
 html_template = f"""
 <style>
-    /* 強制修改 Streamlit 預設背景 */
     .stApp {{ background-color: white; }}
-    /* 全域字體設定 */
     * {{ font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }}
 </style>
 
-<div style="background-color: #FDF5E6; padding: 40px; border-radius: 30px; color: #5D5D5D; max-width: 1200px
+<div style="background-color: #FDF5E6; padding: 40px; border-radius: 30px; color: #5D5D5D; max-width: 1200px; margin: auto;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <div style="font-size: 20px; font-weight: bold; letter-spacing: 4px; color: #BC8F8F;">當 前 時 間</div>
+            <div style="font-size: 100px; font-weight: bold; line-height: 1; margin-top: 10px; color: #5D5D5D;">{now.strftime("%H:%M:%S")}</div>
+        </div>
+        
+        <div style="text-align: right; background: white; padding: 25px 45px; border-radius: 25px; box-shadow: 5px 5px 15px rgba(0,0,0,0.02);">
+            <div style="font-size: 56px; font-weight: bold; color: #BC8F8F; margin-bottom: 5px;">{current_period}</div>
+            <div style="font-size: 32px; color: #888; font-weight: 500;">{current_range}</div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 30px;">
+        <div style="background: white; padding: 35px; border-radius: 25px; flex: 1; box-shadow: 5px 5px 20px rgba(0,0,0,0.03);">
+            <h3 style="color: #BC8F8F; margin: 0 0 20px 0; border-bottom: 2px solid #FDF5E6; padding-bottom: 15px; font-size: 28px;">📅 今日考程表</h3>
