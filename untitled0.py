@@ -1,23 +1,24 @@
 import streamlit as st
 from datetime import datetime
 import pytz
+import time
 
-# --- 網頁設定 ---
-st.set_page_config(page_title="專業考場看板", layout="wide")
+# --- 1. 網頁基礎配置 ---
+st.set_page_config(page_title="考試看板 Pro", layout="wide")
 
-# --- 側邊欄：即時人數修正區 ---
+# --- 2. 側邊欄：人數修正按鈕 ---
 st.sidebar.header("📝 人數即時修正")
 if 'total' not in st.session_state:
-    st.session_state.total = 30 # 初始應到
+    st.session_state.total = 30
 if 'present' not in st.session_state:
-    st.session_state.present = 30 # 初始實到
+    st.session_state.present = 30
 
-# 使用數字選鈕，點一下就加減
-st.session_state.total = st.sidebar.number_input("應到人數", value=st.session_state.total)
-st.session_state.present = st.sidebar.number_input("實到人數", value=st.session_state.present)
+# 使用 Streamlit 的數字輸入器，這就是你要的「點選修正」
+st.session_state.total = st.sidebar.number_input("應到人數", value=st.session_state.total, step=1)
+st.session_state.present = st.sidebar.number_input("實到人數", value=st.session_state.present, step=1)
 absent = st.session_state.total - st.session_state.present
 
-# --- 考程邏輯 (含下午時段) ---
+# --- 3. 時間與課表邏輯 ---
 tw_tz = pytz.timezone('Asia/Taipei')
 now = datetime.now(tw_tz)
 current_hm = now.strftime("%H:%M")
@@ -27,33 +28,65 @@ schedule = [
     {"name": "第二節：寫作", "start": "09:20", "end": "10:05"},
     {"name": "第三節：自修", "start": "10:15", "end": "11:00"},
     {"name": "第四節：數學", "start": "11:10", "end": "11:55"},
-    {"name": "第五節：英文", "start": "13:10", "end": "14:40"}, # 現在時間會中！
+    {"name": "第五節：英文", "start": "13:10", "end": "15:00"}, # 確保現在時間有科目
 ]
 
 current_period = "休息時間"
-for item in schedule:
+current_range = "-- : --"
+highlight_idx = -1
+for i, item in enumerate(schedule):
     if item["start"] <= current_hm <= item["end"]:
         current_period = item["name"]
+        current_range = f"{item['start']} - {item['end']}"
+        highlight_idx = i
+        break
 
-# --- 畫面顯示 (這裡可以用美美的介面) ---
-st.title(f"⏰ 當前時間：{now.strftime('%H:%M:%S')}")
+# --- 4. 關鍵：將 Colab 的美美 HTML 注入 Streamlit ---
+# 我們使用 st.markdown 配合 unsafe_allow_html=True 來到達成
+html_template = f"""
+<style>
+    .stApp {{ background-color: white; }} /* 強制背景變白 */
+</style>
+<div style="background-color: #FDF5E6; padding: 40px; font-family: 'Microsoft JhengHei', sans-serif; border-radius: 30px; color: #5D5D5D;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <div style="font-size: 18px; font-weight: bold; letter-spacing: 3px; color: #BC8F8F;">CURRENT TIME</div>
+            <div style="font-size: 100px; font-weight: bold; line-height: 1; margin-top: 5px; color: #5D5D5D;">{now.strftime("%H:%M:%S")}</div>
+        </div>
+        <div style="text-align: right; background: white; padding: 20px 40px; border-radius: 25px; box-shadow: 5px 5px 15px rgba(0,0,0,0.02);">
+            <div style="font-size: 50px; font-weight: bold; color: #BC8F8F; margin-bottom: 5px;">{current_period}</div>
+            <div style="font-size: 28px; color: #888;">{current_range}</div>
+        </div>
+    </div>
+    <div style="display: flex; gap: 30px;">
+        <div style="background: white; padding: 30px; border-radius: 25px; flex: 1;">
+            <h3 style="color: #BC8F8F; margin: 0 0 15px 0; border-bottom: 2px solid #FDF5E6; padding-bottom: 15px;">📅 今日考程表</h3>
+"""
 
-col1, col2 = st.columns([1, 2])
+for i, item in enumerate(schedule):
+    bg = "background: #A3B18A; color: white; border-radius: 12px;" if i == highlight_idx else "color: #5D5D5D;"
+    html_template += f'<div style="padding: 15px 10px; display: flex; justify-content: space-between; {bg}"><span>{item["name"]}</span><span>{item["start"]} - {item["end"]}</span></div>'
 
-with col1:
-    st.subheader("📅 今日考程")
-    for item in schedule:
-        if item["name"] == current_period:
-            st.success(f"**{item['name']} ({item['start']}-{item['end']})**")
-        else:
-            st.write(f"{item['name']} ({item['start']}-{item['end']})")
+html_template += f"""
+        </div>
+        <div style="background: white; padding: 30px; border-radius: 25px; flex: 1.5; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="color: #BC8F8F; font-size: 20px; font-weight: bold; letter-spacing: 5px; margin-bottom: 20px;">EXAM RULES</div>
+                <h1 style="color: #333; font-size: 48px; line-height: 1.3; margin: 20px 0;">🚫 考完請在位靜候<br><span style="font-size: 30px; color: #666;">等監考老師收完卷</span></h1>
+            </div>
+            <div style="display: flex; justify-content: space-around; background: #FDF5E6; padding: 25px; border-radius: 20px;">
+                <div><small style="color: #BC8F8F;">應到</small><br><b style="font-size: 40px; color: #5D5D5D;">{st.session_state.total}</b></div>
+                <div><small style="color: #BC8F8F;">實到</small><br><b style="font-size: 40px; color: #5D5D5D;">{st.session_state.present}</b></div>
+                <div><small style="color: #BC8F8F;">缺席</small><br><b style="font-size: 40px; color: {'#BC8F8F' if absent > 0 else '#5D5D5D'};">{absent}</b></div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
 
-with col2:
-    st.info(f"🚩 當前考科：{current_period}")
-    st.warning("🚫 考完請在位靜候，等監考老師收完卷。")
-    
-    # 底部人數大看板
-    c1, c2, c3 = st.columns(3)
-    c1.metric("應到", st.session_state.total)
-    c2.metric("實到", st.session_state.present)
-    c3.metric("缺席", absent, delta="- 缺席" if absent > 0 else None, delta_color="inverse")
+# 把組裝好的美美 HTML 顯示出來
+st.markdown(html_template, unsafe_allow_html=True)
+
+# 每秒自動重整，讓秒針會動
+time.sleep(1)
+st.rerun()
