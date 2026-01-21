@@ -108,4 +108,36 @@ html = f"""
     </table>
 
     <div style="display: flex; gap: 20px; margin-top: 30px;">
-        <div style="background: white; padding:
+        <div style="background: white; padding: 25px; border-radius: 20px; flex: 1;">
+            <b style="color: {theme_brown}; font-size: 22px;">📅 今日考程表</b><hr style="border: 1px solid #FDF5E6;">
+"""
+
+for i, x in enumerate(sch):
+    bg = f"background: #A3B18A; color: white; border-radius: 10px;" if i == hi else "border-bottom: 1px solid #eee;"
+    html += f'<div style="{bg} padding: 12px; display: flex; justify-content: space-between; font-size: 18px; margin-top: 5px;"><span>{x["n"]}</span><span>{x["s"]} - {x["e"]}</span></div>'
+
+html += f"""
+        </div>
+
+        <div style="background: white; padding: 25px; border-radius: 20px; flex: 1.5; text-align: center;">
+            <b style="color: {theme_brown}; letter-spacing: 10px; font-size: 20px;">考 場 規 範</b>
+            <h1 style="font-size: 48px; margin: 35px 0; line-height: 1.4;">
+                🚫 考完請在位靜候<br>
+                <span style="font-size: 32px; color: #666;">等監考老師收完卷</span>
+            </h1>
+            
+            <div style="display: flex; justify-content: space-around; background: #FDF5E6; padding: 20px; border-radius: 15px;">
+                <div><small style="font-weight:bold;">應到</small><br><b style="font-size: 45px;">{st.session_state.t}</b></div>
+                <div style="border-left: 1px solid #ddd; padding-left: 20px;"><small style="font-weight:bold;">實到</small><br><b style="font-size: 45px;">{st.session_state.p}</b></div>
+                <div style="border-left: 1px solid #ddd; padding-left: 20px;"><small style="font-weight:bold;">缺席</small><br><b style="font-size: 45px; color: {warn_red if absent > 0 else text_gray};">{absent}</b></div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+st.markdown(html, unsafe_allow_html=True)
+
+# 每秒更新
+time.sleep(1)
+st.rerun()
