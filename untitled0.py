@@ -6,7 +6,7 @@ import time
 # --- 1. 基礎配置 ---
 st.set_page_config(page_title="專業考場看板", layout="wide")
 
-# --- 2. 側邊欄設定 ---
+# --- 2. 側邊欄：考場設定 ---
 st.sidebar.header("📝 考場設定")
 
 if 't' not in st.session_state: st.session_state.t = 30
@@ -16,7 +16,6 @@ st.session_state.p = st.sidebar.number_input("實到人數", value=st.session_st
 absent = st.session_state.t - st.session_state.p
 
 st.sidebar.markdown("---")
-# 手動輸入課表
 default_sch = """第一節：自修, 08:25-09:10
 第二節：寫作, 09:20-10:05
 第三節：自修, 10:15-11:00
@@ -27,7 +26,6 @@ default_sch = """第一節：自修, 08:25-09:10
 st.sidebar.subheader("📅 手動輸入考程")
 raw_input = st.sidebar.text_area("格式：科目, 開始-結束", value=default_sch, height=200)
 
-# 解析課表
 sch = []
 try:
     for line in raw_input.strip().split('\n'):
@@ -50,7 +48,6 @@ is_urgent = False
 for i, x in enumerate(sch):
     if x["s"] <= hm <= x["e"]:
         cur, rng, hi = x["n"], f"{x['s']} - {x['e']}", i
-        # 判斷結束前 10 分鐘
         try:
             end_dt = datetime.strptime(x["e"], "%H:%M").replace(year=now.year, month=now.month, day=now.day, tzinfo=tw_tz)
             remain = (end_dt - now).total_seconds() / 60
@@ -63,10 +60,12 @@ warn_red = "#E63946"
 theme_brown = "#BC8F8F"
 time_color = warn_red if is_urgent else "#5D5D5D"
 box_border = f"3px solid {warn_red}" if is_urgent else "none"
-subj_color = warn_red if is_urgent else theme_brown
 
 # --- 4. 渲染美感看板 ---
-html_output = f"""
+# 這裡將 HTML 拆解開來，確保每一段 st.markdown 都是完整且正確閉合的
+
+# A. 頂部區域 (時間與當前考科)
+top_html = f"""
 <style>
     .stApp {{ background-color: white; }}
     .main-board {{
@@ -79,7 +78,6 @@ html_output = f"""
         margin: auto;
     }}
 </style>
-
 <div class="main-board">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <div>
@@ -91,24 +89,27 @@ html_output = f"""
             </div>
         </div>
         <div style="background: white; padding: 20px 40px; border-radius: 20px; text-align: right; border: {box_border};">
-            <div style="font-size: 45px; font-weight: bold; color: {subj_color};">
+            <div style="font-size: 45px; font-weight: bold; color: {warn_red if is_urgent else theme_brown};">
                 {cur}
             </div>
             <div style="font-size: 24px; color: #888;">{rng}</div>
         </div>
     </div>
-
     <div style="display: flex; gap: 20px;">
+"""
+
+# B. 左側：今日考程表 (動態生成)
+list_html = f"""
         <div style="background: white; padding: 25px; border-radius: 20px; flex: 1;">
             <b style="color: {theme_brown}; font-size: 22px;">📅 今日考程表</b><hr style="border: 0.5px solid #FDF5E6;">
 """
-
 for i, x in enumerate(sch):
     row_bg = "background: #A3B18A; color: white; border-radius: 10px;" if i == hi else "border-bottom: 1px solid #eee;"
-    html_output += f'<div style="{row_bg} padding: 12px; display: flex; justify-content: space-between; font-size: 18px; margin-top: 5px;"><span>{x["n"]}</span><span>{x["s"]} - {x["e"]}</span></div>'
+    list_html += f'<div style="{row_bg} padding: 12px; display: flex; justify-content: space-between; font-size: 18px; margin-top: 5px;"><span>{x["n"]}</span><span>{x["s"]} - {x["e"]}</span></div>'
+list_html += "</div>"
 
-html_output += f"""
-        </div>
+# C. 右側：規範與人數
+rules_html = f"""
         <div style="background: white; padding: 25px; border-radius: 20px; flex: 1.5; text-align: center;">
             <b style="color: {theme_brown}; letter-spacing: 10px; font-size: 20px;">考 場 規 範</b>
             <h1 style="font-size: 48px; margin: 35px 0;">🚫 考完請在位靜候<br><span style="font-size: 32px; color: #666;">等監考老師收完卷</span></h1>
@@ -122,7 +123,8 @@ html_output += f"""
 </div>
 """
 
-st.markdown(html_output, unsafe_allow_html=True)
+# 將三段 HTML 組合並一次顯示
+st.markdown(top_html + list_html + rules_html, unsafe_allow_html=True)
 
 time.sleep(1)
 st.rerun()
