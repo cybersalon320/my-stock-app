@@ -16,7 +16,7 @@ st.session_state.p = st.sidebar.number_input("實到人數", value=st.session_st
 absent = st.session_state.t - st.session_state.p
 
 st.sidebar.markdown("---")
-# 讓你可以手動輸入考程
+# 手動輸入課表
 default_sch = """第一節：自修, 08:25-09:10
 第二節：寫作, 09:20-10:05
 第三節：自修, 10:15-11:00
@@ -44,12 +44,12 @@ tw_tz = pytz.timezone('Asia/Taipei')
 now = datetime.now(tw_tz)
 hm = now.strftime("%H:%M")
 
-cur, rng, hi = "休息時間", "--:--", -1
+cur, rng, hi = "休息時間", "-- : --", -1
 is_urgent = False 
 
 for i, x in enumerate(sch):
     if x["s"] <= hm <= x["e"]:
-        cur, rng, hi = x["n"], f"{x['s']}-{x['e']}", i
+        cur, rng, hi = x["n"], f"{x['s']} - {x['e']}", i
         # 判斷結束前 10 分鐘
         try:
             end_dt = datetime.strptime(x["e"], "%H:%M").replace(year=now.year, month=now.month, day=now.day, tzinfo=tw_tz)
@@ -62,9 +62,10 @@ for i, x in enumerate(sch):
 warn_red = "#E63946"
 theme_brown = "#BC8F8F"
 time_color = warn_red if is_urgent else "#5D5D5D"
+box_border = f"3px solid {warn_red}" if is_urgent else "none"
+subj_color = warn_red if is_urgent else theme_brown
 
-# --- 4. 渲染美感看板 (使用固定寬度避錯) ---
-# 注意：這裡使用 f""" 開頭，務必確保結尾有 """
+# --- 4. 渲染美感看板 ---
 html_output = f"""
 <style>
     .stApp {{ background-color: white; }}
@@ -73,8 +74,9 @@ html_output = f"""
         padding: 30px;
         border-radius: 25px;
         color: #5D5D5D;
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: sans-serif;
         min-width: 900px;
+        margin: auto;
     }}
 </style>
 
@@ -88,5 +90,39 @@ html_output = f"""
                 {now.strftime("%H:%M:%S")}
             </div>
         </div>
-        <div style="background: white; padding: 20px 40px; border-radius: 20px; text-align: right; border: {"3px solid "+warn_red if is_urgent else "none"};">
-            <div style="font-size: 45px; font-weight: bold; color: {warn_red if is_urgent else theme_brown
+        <div style="background: white; padding: 20px 40px; border-radius: 20px; text-align: right; border: {box_border};">
+            <div style="font-size: 45px; font-weight: bold; color: {subj_color};">
+                {cur}
+            </div>
+            <div style="font-size: 24px; color: #888;">{rng}</div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 20px;">
+        <div style="background: white; padding: 25px; border-radius: 20px; flex: 1;">
+            <b style="color: {theme_brown}; font-size: 22px;">📅 今日考程表</b><hr style="border: 0.5px solid #FDF5E6;">
+"""
+
+for i, x in enumerate(sch):
+    row_bg = "background: #A3B18A; color: white; border-radius: 10px;" if i == hi else "border-bottom: 1px solid #eee;"
+    html_output += f'<div style="{row_bg} padding: 12px; display: flex; justify-content: space-between; font-size: 18px; margin-top: 5px;"><span>{x["n"]}</span><span>{x["s"]} - {x["e"]}</span></div>'
+
+html_output += f"""
+        </div>
+        <div style="background: white; padding: 25px; border-radius: 20px; flex: 1.5; text-align: center;">
+            <b style="color: {theme_brown}; letter-spacing: 10px; font-size: 20px;">考 場 規 範</b>
+            <h1 style="font-size: 48px; margin: 35px 0;">🚫 考完請在位靜候<br><span style="font-size: 32px; color: #666;">等監考老師收完卷</span></h1>
+            <div style="display: flex; justify-content: space-around; background: #FDF5E6; padding: 20px; border-radius: 15px;">
+                <div><small>應到</small><br><b style="font-size: 45px;">{st.session_state.t}</b></div>
+                <div><small>實到</small><br><b style="font-size: 45px;">{st.session_state.p}</b></div>
+                <div><small>缺席</small><br><b style="font-size: 45px; color: {warn_red if absent > 0 else "#5D5D5D"};">{absent}</b></div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+st.markdown(html_output, unsafe_allow_html=True)
+
+time.sleep(1)
+st.rerun()
