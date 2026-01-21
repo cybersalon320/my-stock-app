@@ -66,4 +66,34 @@ html_template = f"""
 
     <div style="display: flex; gap: 30px;">
         <div style="background: white; padding: 30px; border-radius: 25px; flex: 1; box-shadow: 5px 5px 20px rgba(0,0,0,0.03);">
-            <h3 style="color: #BC8F8F; margin: 0 0 15px 0; border-bottom: 2px solid #FDF5
+            <h3 style="color: #BC8F8F; margin: 0 0 15px 0; border-bottom: 2px solid #FDF5E6; padding-bottom: 15px; font-size: 26px;">📅 今日考程表</h3>
+"""
+
+for i, item in enumerate(schedule):
+    bg = "background: #A3B18A; color: white; border-radius: 12px; font-weight: bold;" if i == highlight_idx else "color: #5D5D5D;"
+    html_template += f'<div style="padding: 15px 10px; display: flex; justify-content: space-between; {bg} font-size: 18px;"><span>{item["name"]}</span><span>{item["start"]} - {item["end"]}</span></div>'
+
+html_template += f"""
+        </div>
+
+        <div style="background: white; padding: 30px; border-radius: 25px; flex: 1.5; text-align: center; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 5px 5px 20px rgba(0,0,0,0.03);">
+            <div>
+                <div style="color: #BC8F8F; font-size: 24px; font-weight: bold; letter-spacing: 10px; margin-bottom: 20px;">考 場 規 範</div>
+                <h1 style="color: #333; font-size: 48px; line-height: 1.4; margin: 25px 0;">🚫 考完請在位靜候<br><span style="font-size: 32px; color: #666;">等監考老師收完卷</span></h1>
+            </div>
+
+            <div style="display: flex; justify-content: space-around; background: #FDF5E6; padding: 25px; border-radius: 20px;">
+                <div><small style="color: #BC8F8F; font-weight: bold; font-size: 16px;">應到人數</small><br><b style="font-size: 45px; color: #5D5D5D;">{st.session_state.total}</b></div>
+                <div style="border-left: 1px solid #ddd; padding-left: 20px;"><small style="color: #BC8F8F; font-weight: bold; font-size: 16px;">實到人數</small><br><b style="font-size: 45px; color: #5D5D5D;">{st.session_state.present}</b></div>
+                <div style="border-left: 1px solid #ddd; padding-left: 20px;"><small style="color: #BC8F8F; font-weight: bold; font-size: 16px;">缺席人數</small><br><b style="font-size: 45px; color: {'#BC8F8F' if absent > 0 else '#5D5D5D'};">{absent}</b></div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+st.markdown(html_template, unsafe_allow_html=True)
+
+# 每秒自動更新，保持時鐘跳動
+time.sleep(1)
+st.rerun()
